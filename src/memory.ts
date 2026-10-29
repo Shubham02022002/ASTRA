@@ -33,3 +33,15 @@ export async function loadSession(file: string): Promise<Message[]> {
 export async function saveMessage(file: string, msg: Message) {
   await appendFile(file, JSON.stringify(msg) + "\n");
 }
+
+export async function listSessions(): Promise<string[]> {
+  try {
+    const files = (await readdir(DIR))
+      .filter((f) => f.endsWith(".jsonl"))
+      .sort()
+      .reverse();
+    return files.map((f) => path.join(DIR, f));
+  } catch {
+    return [];
+  }
+}
