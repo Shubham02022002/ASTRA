@@ -2,7 +2,7 @@ import * as readline from "node:readline/promises";
 import type { Command } from "commander";
 import ollama from "ollama";
 import { latestSession, loadSession, newSession, saveMessage } from "../memory";
-import { completer, handleSlash, type Ctx } from "./slash";
+import { completer, handleSlash, type Ctx } from "../slash";
 
 async function ask(ctx: Ctx) {
   let reply = "";

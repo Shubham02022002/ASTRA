@@ -1,7 +1,5 @@
 import { Command } from "commander";
-import ollama from "ollama";
 import { listModels, pullModel, showModel } from "./commands/model";
-import { latestSession, loadSession, newSession, saveMessage } from "./memory";
 import { chat } from "./commands/chat";
 
 const program = new Command();
