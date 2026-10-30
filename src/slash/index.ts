@@ -1,11 +1,14 @@
 import ollama, { type Message } from "ollama";
 import path from "node:path";
 import { listSessions, loadSession, newSession } from "../memory";
+import { ui } from "../ui";
 
 export type Ctx = {
   model: string;
   messages: Message[];
   sessionFile: string;
+  cwd: string;
+  yes: boolean;
 };
 
 type SlashCommand = {
@@ -25,7 +28,7 @@ export const commands: Record<string, SlashCommand> = {
     description: "List all commands",
     run: () => {
       for (const [name, c] of Object.entries(commands)) {
-        console.log(`  /${name.padEnd(10)} ${c.description}`);
+        console.log(ui.command(name, c.description));
       }
     },
   },
@@ -42,11 +45,11 @@ export const commands: Record<string, SlashCommand> = {
         return;
       }
       if (!installed.includes(name)) {
-        console.log(`"${name}" is not installed. Run: ASTRA pull ${name}`);
+        ui.warn(`"${name}" is not installed. Run: ASTRA pull ${name}`);
         return;
       }
       ctx.model = name;
-      console.log(`switched to ${name}`);
+      ui.success(`switched to ${name}`);
     },
   },
 
@@ -55,7 +58,7 @@ export const commands: Record<string, SlashCommand> = {
     run: async (_a, ctx) => {
       ctx.messages.length = 0;
       ctx.sessionFile = await newSession();
-      console.log("cleared");
+      ui.success("cleared");
     },
   },
 
@@ -93,7 +96,7 @@ export async function handleSlash(line: string, ctx: Ctx): Promise<boolean> {
   if (!line.startsWith("/")) return false;
   const [name = "", ...args] = line.slice(1).trim().split(/\s+/);
   const cmd = commands[name];
-  if (!cmd) console.log(`unknown command: /${name}  (try /help)`);
+  if (!cmd) ui.warn(`unknown command: /${name}  (try /help)`);
   else await cmd.run(args, ctx);
   return true;
 }
