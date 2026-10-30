@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import type { Message } from "ollama";
+import type { ChatMessage } from "./providers/provider.interface";
 
 const DIR = path.join(homedir(), ".ASTRA", "sessions");
 
@@ -22,7 +22,7 @@ export async function latestSession() {
   }
 }
 
-export async function loadSession(file: string): Promise<Message[]> {
+export async function loadSession(file: string): Promise<ChatMessage[]> {
   const text = await readFile(file, "utf8");
   return text
     .split("\n")
@@ -30,7 +30,7 @@ export async function loadSession(file: string): Promise<Message[]> {
     .map((line) => JSON.parse(line));
 }
 
-export async function saveMessage(file: string, msg: Message) {
+export async function saveMessage(file: string, msg: ChatMessage) {
   await appendFile(file, JSON.stringify(msg) + "\n");
 }
 

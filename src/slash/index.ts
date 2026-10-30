@@ -1,14 +1,21 @@
-import ollama, { type Message } from "ollama";
 import path from "node:path";
+import { listProviders, setProvider } from "../commands/provider";
+import { loadSettings, saveSettings } from "../config/settings";
 import { listSessions, loadSession, newSession } from "../memory";
+import { createProvider } from "../providers";
+import type { ProviderName } from "../providers/presets";
+import type { ChatMessage, LLMProvider } from "../providers/provider.interface";
 import { ui } from "../ui";
 
 export type Ctx = {
+  provider: ProviderName;
   model: string;
-  messages: Message[];
+  llm: LLMProvider;
+  messages: ChatMessage[];
   sessionFile: string;
   cwd: string;
   yes: boolean;
+  abort?: () => void;
 };
 
 type SlashCommand = {
@@ -33,22 +40,56 @@ export const commands: Record<string, SlashCommand> = {
     },
   },
 
+  provider: {
+    description: "Show or switch provider:  /provider [set <name>]",
+    run: async ([action, name], ctx) => {
+      if (action === "set" && name) {
+        try {
+          const result = await setProvider(name);
+          ctx.provider = result.provider;
+          ctx.model = result.model;
+          ctx.llm = createProvider(result.provider, result.model);
+          ui.success(`provider: ${result.provider}  model: ${result.model}`);
+        } catch (err) {
+          ui.error((err as Error).message);
+        }
+        return;
+      }
+      await listProviders();
+    },
+  },
+
   model: {
     description: "Show or switch model:  /model [name]",
     run: async ([name], ctx) => {
-      const { models } = await ollama.list();
-      const installed = models.map((m) => m.name);
       if (!name) {
         console.log(
-          `current: ${ctx.model}\ninstalled:\n  ${installed.join("\n  ")}`,
+          `current: ${ctx.model}  (${ctx.provider})`,
         );
+        const models = await ctx.llm.listModels().catch((): string[] => []);
+        if (models.length) {
+          const shown = models.slice(0, 25);
+          console.log(`available:\n  ${shown.join("\n  ")}`);
+          if (models.length > shown.length) {
+            console.log(`  … and ${models.length - shown.length} more`);
+          }
+        }
         return;
       }
-      if (!installed.includes(name)) {
-        ui.warn(`"${name}" is not installed. Run: ASTRA pull ${name}`);
-        return;
+      if (ctx.provider === "ollama") {
+        const installed = await ctx.llm
+          .listModels()
+          .catch((): string[] => []);
+        if (installed.length && !installed.includes(name)) {
+          ui.warn(`"${name}" is not installed. Run: ASTRA pull ${name}`);
+          return;
+        }
       }
+      const settings = await loadSettings();
+      settings.models[ctx.provider] = name;
+      await saveSettings(settings);
       ctx.model = name;
+      ctx.llm = createProvider(ctx.provider, name);
       ui.success(`switched to ${name}`);
     },
   },

@@ -1,8 +1,20 @@
 import ollama from "ollama";
+import { loadSettings } from "../config/settings";
+import { createProvider } from "../providers";
+import { ui } from "../ui";
 
 export const listModels = async () => {
-  const { models } = await ollama.list();
-  console.log(models.map((m) => m.name).join("\n"));
+  const settings = await loadSettings();
+  const provider = createProvider(
+    settings.provider,
+    settings.models[settings.provider],
+  );
+  const models = await provider.listModels();
+  if (!models.length) {
+    console.log(ui.dim(`no models available for ${settings.provider}`));
+    return;
+  }
+  console.log(models.join("\n"));
 };
 
 export const showModel = async (model: string) => {

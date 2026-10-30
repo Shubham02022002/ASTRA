@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { PRESETS, type ProviderName } from "./providers/presets";
 
 const theme = {
   accent: chalk.hex("#D97757"),
@@ -32,17 +33,25 @@ function box(lines: string[]) {
 }
 
 export const ui = {
-  banner: (model: string, cwd: string) =>
-    box([
-      theme.accent("✻ ") + theme.text.bold("Welcome to ASTRA"),
-      "",
-      theme.dim("model: ") + theme.text(model),
-      theme.dim("cwd:   ") + theme.text(cwd),
-      "",
-      theme.dim("/help for commands · Ctrl+C stops a reply"),
-    ]) + "\n",
+  banner: (info: { provider: ProviderName; model: string; cwd: string }) => {
+    const preset = PRESETS[info.provider];
+    const tag = preset.cloud ? theme.warn("cloud") : theme.success("local");
+    return (
+      box([
+        theme.accent("✻ ") + theme.text.bold("Welcome to ASTRA"),
+        "",
+        theme.dim("provider: ") + theme.text(preset.label + " ") + tag,
+        theme.dim("model:    ") + theme.text(info.model),
+        theme.dim("cwd:      ") + theme.text(info.cwd),
+        "",
+        theme.dim("/help for commands · /provider to switch · Ctrl+C stops a reply"),
+      ]) + "\n"
+    );
+  },
 
   prompt: theme.accentBold("> "),
+  accent: (s: string) => theme.accent(s),
+  dim: (s: string) => theme.dim(s),
 
   info: (s: string) => console.log(theme.dim(s)),
   success: (s: string) => console.log(theme.success("✔ ") + s),
