@@ -1,12 +1,18 @@
 import { Command } from "commander";
 import { listModels, pullModel, showModel } from "./commands/model";
 import { chat } from "./commands/chat";
+import { ui } from "./ui";
 
 const program = new Command();
 
 program
   .name("ASTRA")
-  .option("-m, --model <name>", "model to use", "qwen2.5-coder:0.5b");
+  .option("-m, --model <name>", "model to use", "qwen2.5-coder:0.5b")
+  .option("-p, --print <prompt>", "run one prompt, print the answer, exit")
+  .option("-c, --continue", "continue the most recent session")
+  .option("--cwd <dir>", "directory the agent works in", process.cwd())
+  .option("--yes", "skip permission prompts")
+  .action(chat);
 
 program
   .command("models")
@@ -31,6 +37,6 @@ program
 try {
   await program.parseAsync();
 } catch (err) {
-  console.error(`error: ${(err as Error).message}`);
+  ui.error((err as Error).message);
   process.exit(1);
 }

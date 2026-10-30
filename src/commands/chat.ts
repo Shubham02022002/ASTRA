@@ -1,8 +1,18 @@
+import { stat } from "node:fs/promises";
+import path from "node:path";
 import * as readline from "node:readline/promises";
-import type { Command } from "commander";
-import ollama from "ollama";
+import ollama, { type Message } from "ollama";
 import { latestSession, loadSession, newSession, saveMessage } from "../memory";
 import { completer, handleSlash, type Ctx } from "../slash";
+import { ui } from "../ui";
+
+type ChatOptions = {
+  model: string;
+  print?: string;
+  continue?: boolean;
+  cwd: string;
+  yes?: boolean;
+};
 
 async function ask(ctx: Ctx) {
   let reply = "";
@@ -18,7 +28,7 @@ async function ask(ctx: Ctx) {
     }
   } catch (err) {
     if ((err as Error).name !== "AbortError") throw err;
-    process.stdout.write("\n[stopped]");
+    process.stdout.write(ui.stopped());
   }
   process.stdout.write("\n");
 
@@ -29,24 +39,29 @@ async function ask(ctx: Ctx) {
   }
 }
 
-export const chat = async (
-  query: string | undefined,
-  opts: { continue?: boolean },
-  command: Command,
-) => {
-  const { model } = command.parent?.opts<{ model: string }>() ?? {
-    model: "qwen2.5-coder:0.5b",
-  };
+async function addUser(ctx: Ctx, content: string) {
+  const msg: Message = { role: "user", content };
+  ctx.messages.push(msg);
+  await saveMessage(ctx.sessionFile, msg);
+}
+
+export const chat = async (opts: ChatOptions) => {
+  const cwd = path.resolve(opts.cwd);
+  const info = await stat(cwd).catch(() => undefined);
+  if (!info?.isDirectory()) throw new Error(`--cwd is not a directory: ${cwd}`);
 
   let file = opts.continue ? await latestSession() : undefined;
   const messages = file ? await loadSession(file) : [];
   file ??= await newSession();
-  const ctx: Ctx = { model, messages, sessionFile: file };
-
-  if (query) {
-    const msg = { role: "user", content: query };
-    ctx.messages.push(msg);
-    await saveMessage(ctx.sessionFile, msg);
+  const ctx: Ctx = {
+    model: opts.model,
+    messages,
+    sessionFile: file,
+    cwd,
+    yes: opts.yes ?? false,
+  };
+  if (opts.print) {
+    await addUser(ctx, opts.print);
     await ask(ctx);
     return;
   }
@@ -60,16 +75,13 @@ export const chat = async (
   rl.on("SIGINT", () => (busy ? ollama.abort() : rl.close()));
   rl.on("close", () => process.exit(0));
 
-  console.log(`model: ${ctx.model}   (type /help for commands)`);
+  console.log(ui.banner(ctx.model, ctx.cwd));
   while (true) {
-    const line = (await rl.question("> ")).trim();
+    const line = (await rl.question(ui.prompt)).trim();
     if (!line) continue;
     if (await handleSlash(line, ctx)) continue;
 
-    const msg = { role: "user", content: line };
-    ctx.messages.push(msg);
-    await saveMessage(ctx.sessionFile, msg);
-
+    await addUser(ctx, line);
     busy = true;
     await ask(ctx);
     busy = false;
