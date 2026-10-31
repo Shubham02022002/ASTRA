@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import * as readline from "node:readline/promises";
+import { runAgent } from "../agent/loop";
 import { loadSettings } from "../config/settings";
 import { latestSession, loadSession, newSession, saveMessage } from "../memory";
 import { createProvider } from "../providers";
@@ -21,35 +22,6 @@ type ChatOptions = {
   cwd: string;
   yes?: boolean;
 };
-
-async function ask(ctx: Ctx) {
-  let reply = "";
-  const controller = new AbortController();
-  ctx.abort = () => controller.abort();
-  try {
-    const res = await ctx.llm.chat(ctx.messages, {
-      signal: controller.signal,
-      onToken: (text) => {
-        process.stdout.write(text);
-        reply += text;
-      },
-    });
-    reply = res.content ?? reply;
-  } catch (err) {
-    const name = (err as Error).name;
-    if (!controller.signal.aborted && name !== "AbortError") throw err;
-    process.stdout.write(ui.stopped());
-  } finally {
-    ctx.abort = undefined;
-  }
-  process.stdout.write("\n");
-
-  if (reply) {
-    const msg: ChatMessage = { role: "assistant", content: reply };
-    ctx.messages.push(msg);
-    await saveMessage(ctx.sessionFile, msg);
-  }
-}
 
 async function addUser(ctx: Ctx, content: string) {
   const msg: ChatMessage = { role: "user", content };
@@ -95,7 +67,7 @@ export const chat = async (opts: ChatOptions) => {
   };
   if (opts.print) {
     await addUser(ctx, opts.print);
-    await ask(ctx);
+    await runAgent(ctx);
     return;
   }
 
@@ -116,7 +88,7 @@ export const chat = async (opts: ChatOptions) => {
 
     await addUser(ctx, line);
     busy = true;
-    await ask(ctx);
+    await runAgent(ctx);
     busy = false;
   }
 };

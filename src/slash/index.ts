@@ -5,6 +5,7 @@ import { listSessions, loadSession, newSession } from "../memory";
 import { createProvider } from "../providers";
 import type { ProviderName } from "../providers/presets";
 import type { ChatMessage, LLMProvider } from "../providers/provider.interface";
+import { toolList } from "../tools/registry";
 import { ui } from "../ui";
 
 export type Ctx = {
@@ -91,6 +92,15 @@ export const commands: Record<string, SlashCommand> = {
       ctx.model = name;
       ctx.llm = createProvider(ctx.provider, name);
       ui.success(`switched to ${name}`);
+    },
+  },
+
+  tools: {
+    description: "List available tools",
+    run: () => {
+      for (const tool of toolList()) {
+        console.log(ui.command(tool.name, tool.description));
+      }
     },
   },
 
