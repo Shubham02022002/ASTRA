@@ -134,7 +134,7 @@ Both are plain text. Delete `config.json` to reset to the built-in defaults.
 src/
   index.ts          CLI entry point (commander)
   ui.ts             terminal styling and banner
-  agent/loop.ts     streaming tool-calling loop
+  agent/            system prompt and streaming tool-calling loop
   commands/         chat, model, and provider actions
   config/           settings persistence
   memory.ts         session transcript storage

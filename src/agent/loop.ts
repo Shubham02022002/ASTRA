@@ -3,6 +3,7 @@ import type { ChatMessage, LLMResponse } from "../providers/provider.interface";
 import type { Ctx } from "../slash";
 import { runTool, toolDefinitions } from "../tools/registry";
 import { ui } from "../ui";
+import { systemPrompt } from "./prompt";
 
 export const MAX_ITERATIONS = 10;
 
@@ -18,13 +19,15 @@ function firstLine(s: string): string {
 }
 
 export async function runAgent(ctx: Ctx): Promise<void> {
+  const system: ChatMessage = { role: "system", content: systemPrompt(ctx.cwd) };
+
   for (let round = 0; round < MAX_ITERATIONS; round++) {
     const controller = new AbortController();
     ctx.abort = () => controller.abort();
     let streamed = "";
     let response: LLMResponse;
     try {
-      response = await ctx.llm.chat(ctx.messages, {
+      response = await ctx.llm.chat([system, ...ctx.messages], {
         tools: toolDefinitions(),
         signal: controller.signal,
         onToken: (text) => {
